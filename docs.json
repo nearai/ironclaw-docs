@@ -47,7 +47,7 @@
           {
             "group": "Extensions (Tools)",
             "pages": [
-              "channels/web-search"
+              "extensions/web-search"
             ]
           }
         ]
