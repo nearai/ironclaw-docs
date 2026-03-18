@@ -47,7 +47,8 @@
           {
             "group": "Extensions (Tools)",
             "pages": [
-              "extensions/web-search"
+              "extensions/web-search",
+              "extensions/github"
             ]
           }
         ]
