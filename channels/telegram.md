@@ -4,7 +4,7 @@ description: "Interact with your agent through Telegram"
 icon: telegram
 ---
 
-In this guide, we will show you how to set up a Telegram channel to interact with your IronClaw agent. We assume that you already have an agent up and running.
+You can create a Telegram bot and connect your IronClaw agent to it. Once configured, you can talk to your agent in direct messages or add it to a group chat so it can participate there.
 
 <Note>
 If you haven't set up your agent yet, follow our [Quickstart guide](../quickstart)
@@ -274,4 +274,66 @@ Use cases:
     - Recent conversation history in that thread
   </Accordion>
 
+</AccordionGroup>
+
+---
+
+## Webhook Secret (Optional)
+
+When IronClaw is running in webhook mode, Telegram delivers messages by sending HTTP requests to your public URL. Because that URL is reachable from the internet, any third party could send fake requests to it.
+
+A webhook secret is a shared token you configure in IronClaw. Telegram includes that token in every request it sends. IronClaw rejects any request that does not carry the correct token, so only genuine Telegram traffic reaches your agent.
+
+To enable it, add `telegram_webhook_secret` to your `.ironclaw/channels/telegram.capabilities.json`:
+
+```json
+{
+  "telegram_webhook_secret": "your-secret-here"
+}
+```
+
+Generate a suitable value with:
+
+```bash
+openssl rand -hex 16
+```
+
+<Note>
+The webhook secret is only relevant when `polling_enabled` is `false`. If you are using polling, this option has no effect.
+</Note>
+
+---
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Messages not delivered">
+    **Polling:** Check logs for `getUpdates` errors and verify the bot token is valid.
+
+    **Webhook:** Verify the HTTPS URL is reachable and the tunnel is running.
+  </Accordion>
+
+  <Accordion title="Pairing code not sent">
+    - Ensure `dm_policy` is set to `pairing` and not `allowlist`
+    - Verify `api.telegram.org` is accessible from your instance
+  </Accordion>
+
+  <Accordion title="Group mentions not working">
+    - Confirm `bot_username` is set and matches the bot username exactly, without the `@`
+    - Verify the bot has permission to read group messages
+  </Accordion>
+
+  <Accordion title="Bot not seeing group messages">
+    - Disable Privacy Mode in @BotFather: `/mybots` → Bot Settings → Group Privacy → turn OFF
+    - Remove and re-add the bot to the group after changing the privacy setting
+  </Accordion>
+
+  <Accordion title="Bot responding to all group messages unexpectedly">
+    - Set `respond_to_all_group_messages` to `false`
+    - Verify the config was saved and restart the agent
+  </Accordion>
+
+  <Accordion title="Owner binding timeout during setup">
+    The wizard waits 120 seconds for the first message. If it times out, send `/start` to your bot in Telegram and re-run `ironclaw onboard --channels-only`.
+  </Accordion>
 </AccordionGroup>
