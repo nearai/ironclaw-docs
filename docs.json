@@ -41,7 +41,17 @@
           {
             "group": "Channels",
             "pages": [
-              "channels/telegram"
+              "tunnel",
+              {
+                "group": "Available Channels",
+                "icon": "message",
+                "pages": [
+                  "channels/local",
+                  "channels/signal",
+                  "channels/telegram",
+                  "channels/webhook"
+                ]
+              }
             ]
           },
           {
