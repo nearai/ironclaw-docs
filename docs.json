@@ -56,11 +56,9 @@
           {
             "group": "Installation",
             "pages": [
-              "install/index",
-              "install/local",
-              "install/docker",
-              "install/vps",
-              "install/nearai-cloud"
+              "index",
+              "quickstart",
+              "onboard"
             ]
           },
           {
@@ -278,6 +276,13 @@
             "pages": [
               "help/troubleshooting",
               "help/faq"
+            ]
+          },
+          {
+            "group": "Extensions (Tools)",
+            "pages": [
+              "extensions/web-search",
+              "extensions/github"
             ]
           }
         ]
