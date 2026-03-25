@@ -1,274 +1,161 @@
 ---
-title: Telegram Channel
-sidebarTitle: Telegram
-description: Bot integration for Telegram
+title: "Telegram"
+description: "Interact with your agent through Telegram"
+icon: telegram
 ---
 
-Connect IronClaw to Telegram for chat via DMs and groups.
+You can create a Telegram bot and connect your IronClaw agent to it. Once configured, you can talk to your agent in direct messages or add it to a group chat so it can participate there.
 
-## Prerequisites
+<Note>
+If you haven't set up your agent yet, follow our [Quickstart guide](../quickstart)
+</Note>
 
-- Telegram account
-- Bot token from [@BotFather](https://t.me/BotFather)
+---
 
-## Quick Setup
+## Set up a Telegram channel
 
-### 1. Create a Bot
+<Steps>
 
-1. Message [@BotFather](https://t.me/BotFather) on Telegram
-2. Send `/newbot` and follow prompts
-3. Copy the bot token (looks like: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`)
+<Step title="Create a new bot with BotFather">
 
-### 2. Configure via Wizard
+In order to create a new Telegram bot, you need to talk to [BotFather](https://t.me/botfather), the official Telegram bot that helps you create and manage your bots.
 
-```bash
-ironclaw onboard --channels-only
-```
+<Steps>
+    <Step title="Start a conversation with BotFather">
+    Search for "BotFather" in the Telegram app and start a conversation with it. You can also use this link: [https://t.me/botfather](https://t.me/botfather)
+    </Step>
+    <Step title="Create a new bot">
+    Send the command `/newbot` to BotFather and follow the instructions to create a new bot. You will need to choose a name and a username for your bot. The username must end with "bot". For example, "my_agent_bot".
+    </Step>
+    <Step title="Get your bot token">
+    After creating your bot, BotFather will give you a token that looks like this: `123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ`. This token is used to authenticate your bot and allow it to access the Telegram API. Keep this token safe and do not share it with anyone. You will need it later to configure the Telegram channel in IronClaw.
+    </Step>
+</Steps>
 
-When prompted:
-1. Select "Telegram" from channel list
-2. Paste your bot token
-3. Choose polling or webhook mode
-4. Complete owner binding
+</Step>
+<Step title="Configure the Telegram channel in IronClaw">
 
-### 3. Start IronClaw
+    Invoke the IronClaw CLI onboard wizard using the `--channels-only` flag to configure only the channels without going through the entire onboarding process again:
 
-```bash
-ironclaw run
-```
+    ```
+    ironclaw onboard --channels-only
+    ```
 
-Your bot is now active!
+    <Steps>
+        <Step title="Config the Tunnel">
+            If you have not setup a `Tunnel` yet, the wizard will ask you to choose a tunnel provider and set it up. We recommend using [ngrok](https://dashboard.ngrok.com/) for its ease of use and reliability.
+
+            ![ngrok setup](/images/channels/tunnel.png)
+        </Step>
+        <Step title="Install the Telegram channel">
+        Select the Telegram channel from the list of available channels to install it.
+        ![select channel](/images/channels/telegram-channel.png)
+        </Step>
+        <Step title="Add your bot token">
+            Enter the bot token you got from BotFather in the previous step.
+        </Step>
+    </Steps>
+</Step>
+
+<Step title="Test your Telegram channel">
+    Now that you have configured your Telegram channel, it is time to test it out. Start the `ironclaw` agent if it is not already running:
+
+    ```
+    ironclaw
+    ```
+
+    Send a message to your bot in Telegram. It will respond with a command that you will need to execute in the terminal to complete the channel setup:
+
+    ```
+    ironclaw pairing approve telegram <PAIRING_CODE>
+    ```
+</Step>
+
+</Steps>
+
+---
+
+## Telegram Side Settings
+
+<Accordion title="Privacy mode and group visibility">
+Telegram bots default to Privacy Mode, which limits what group messages they receive.If the bot must see all group messages, either:
+
+    - disable privacy mode via `/setprivacy`, or
+    - make the bot a group admin.
+
+When toggling privacy mode, remove and re-add the bot in each group so Telegram applies the change.
+</Accordion>
+<Accordion title="Group permissions">
+    Admin status is controlled in Telegram group settings.Admin bots receive all group messages, which is useful for always-on group behavior.
+</Accordion>
+<Accordion title="Helpful BotFather toggles">
+    - `/setjoingroups` to allow/deny group adds
+    - `/setprivacy` for group visibility behavior
+
+</Accordion>
+
+---
 
 ## Configuration Options
 
-| Option | Values | Default | Description |
-|--------|--------|---------|-------------|
-| `dm_policy` | `open`, `allowlist`, `pairing` | `pairing` | DM access control |
-| `allow_from` | user IDs | `[]` | Pre-approved users ([see locking down](#locking-down-the-bot)) |
-| `owner_id` | Telegram user ID | — | Restrict to single owner ([see locking down](#locking-down-the-bot)) |
-| `bot_username` | username | — | For group mention detection |
-| `respond_to_all_group_messages` | bool | `false` | Respond to all group messages |
+You can configure the behavior of the Telegram channel through the
+`.ironclaw/channels/telegram.capabilities.json` file, which is created
+automatically after you set up the channel for the first time.
 
-## Modes
+<Accordion title="Options Overview">
 
-### Polling Mode
+| Option                          | Values                         | Default   | Description                                                                     |
+|---------------------------------|--------------------------------|-----------|---------------------------------------------------------------------------------|
+| `dm_policy`                     | `open`, `allowlist`, `pairing` | `pairing` | Controls who can send direct messages to the bot                                |
+| `allow_from`                    | user IDs                       | `[]`      | Users allowed to DM the bot when `dm_policy` is set to `allowlist`              |
+| `owner_id`                      | Telegram user ID               | —         | If set, only this user can interact with the bot (DMs and group messages)       |
+| `respond_to_all_group_messages` | bool                           | `false`   | Respond to all group messages                                                   |
+| `bot_username`                  | username                       | —         | For group mention detection whenever `respond_to_all_group_messages` is `false` |
+| `polling_enabled`               | bool                           | `false`   | Use polling instead of webhooks                                                 |
+| `poll_interval_ms`              | number                         | `30000`   | Polling interval in milliseconds (only used if `polling_enabled` is `true`)     |
+</Accordion>
 
-- No external URL required
-- ~30 second delay
-- Simpler setup
+<Note>
 
-### Webhook Mode
+Remember to restart your agent after changing the configuration file for the changes to take effect
 
-- Instant message delivery
-- Requires HTTPS URL
-- Use tunnel for local development
+</Note>
 
-```bash
-# Using ngrok
-ngrok http 8080
+### Direct Message Policy
 
-# Set tunnel URL in wizard
-Tunnel URL: https://abc123.ngrok.io
-```
+The `dm_policy` option controls who can send direct messages to the bot:
 
-<Warning>
-**ngrok free tier:** URL changes on restart → requires re-registration. Consider paid plan or Cloudflare Tunnel for production.
-</Warning>
+- `open`: anyone can DM the bot without restrictions
+- `allowlist`: only users in the `allow_from` list can DM the bot
+- `pairing` **(default)**: the bot will DM back any user that contacts it with a pairing command that needs to be executed in the terminal
 
-## DM Pairing
+Related options:
+- The `allow_from` option is a list of Telegram user IDs that are allowed to DM the bot when `dm_policy` is set to `allowlist`.
+- The `owner_id` option restricts the bot to answer only messages from a specific Telegram user ID
 
-Control who can message your bot:
+<Tip> 
 
-### Pairing Mode (Default)
+**User ID**
 
-Unknown users receive a pairing code:
+Message [@userinfobot](https://t.me/userinfobot) to get your Telegram user ID.
 
-```
-To pair with this bot, run: ironclaw pairing approve telegram ABC12345
-```
+</Tip>
 
-You approve them with:
-```bash
-ironclaw pairing approve telegram ABC12345
-```
+### Respond to all group messages
+By default, the Telegram channel will only respond to messages that mention the bot in groups.
+If you want the bot to respond to all group messages, set the `respond_to_all_group_messages`
 
-### Other Modes
+Relevant options:
+- If `respond_to_all_group_messages` is set to `false`, the bot will only respond to messages that mention it.
+In this case, make sure to set the `bot_username` option with the bot's username (without the `@`)
 
-- **open**: Allow all users
-- **allowlist**: Only pre-approved users (no pairing message)
+### Polling
 
-### Pairing Commands
+In case you do not want to configure a `tunnel`, you can setup the Telegram channel to poll for
+new messages every certain interval of time.
 
-```bash
-# List pending requests
-ironclaw pairing list telegram
-
-# Approve by code
-ironclaw pairing approve telegram ABC12345
-
-# List as JSON
-ironclaw pairing list telegram --json
-```
-
-## Group Chat Participation
-
-The Telegram channel supports group chats with configurable triggering modes. The bot can respond to:
-
-- **@mentions**: When users mention the bot by username (`@YourBot`)
-- **Commands**: Messages starting with `/command`
-- **All messages**: Every message in the group (if enabled)
-- **Replies**: When users reply to the bot's messages
-
-### Adding the Bot to Groups
-
-1. **Enable group privacy** in @BotFather:
-   - Message [@BotFather](https://t.me/BotFather)
-   - Send `/mybots` → Select your bot
-   - Click "Bot Settings" → "Group Privacy"
-   - Turn OFF "Privacy mode" (allows bot to see all messages)
-
-2. **Add bot to a group**:
-   - Open the group in Telegram
-   - Add member → Search for your bot username
-   - Grant admin permissions (optional but recommended)
-
-3. **Configure `bot_username`** in IronClaw:
-   ```json
-   {
-     "bot_username": "MyIronClawBot"
-   }
-   ```
-
-### Group Trigger Modes
-
-#### Mode 1: Mention/Command Only (Default)
-
-The bot only responds when:
-- Mentioned by username: `@MyIronClawBot what's the weather?`
-- A command is used: `/ask what's the weather?`
-- Someone replies to the bot's message
-
-Configuration:
-```json
-{
-  "bot_username": "MyIronClawBot",
-  "respond_to_all_group_messages": false
-}
-```
-
-Benefits:
-- Respects group conversation flow
-- No spam from unsolicited responses
-- Users explicitly choose to engage the agent
-
-#### Mode 2: Respond to All Messages
-
-The bot processes and responds to every message in the group.
-
-Configuration:
-```json
-{
-  "bot_username": "MyIronClawBot",
-  "respond_to_all_group_messages": true
-}
-```
-
-Use cases:
-- Small team rooms where the agent is always helpful
-- Automated moderation or summarization
-- Specific-topic groups where the agent provides expertise
-
-<Warning>
-**Rate limiting**: Groups can be high-volume. The bot has built-in rate limits (100 msg/min, 5000 msg/hour). Messages exceeding the limit are dropped.
-</Warning>
-
-### Reply Threading
-
-The bot tracks conversation threads using Telegram's reply mechanism:
-
-```
-User A: What's the weather today?
-Bot: The weather in New York is 72°F and sunny.
-
-User B [replying to bot]: What about tomorrow?
-Bot: Tomorrow will be 68°F with scattered clouds.
-```
-
-The bot sees the reply context and understands "tomorrow" refers to the weather in New York.
-
-### Group Message Format
-
-When processing group messages, the bot receives:
-
-```
-[alice]: @MyIronClawBot summarize this document
-[bob]: Can someone help with the server?
-[carol]: @MyIronClawBot what's the status?
-```
-
-The bot can see:
-- The message text
-- Who sent it (username/first name)
-- Whether it's a reply to another message
-- The @mention (stripped before processing)
-
-## Locking Down the Bot
-
-Restrict your Telegram bot to specific users with `owner_id` or `allow_from`. Unauthorized users are silently ignored.
-
-### Finding Your User ID
-
-Message [@userinfobot](https://t.me/userinfobot) — it will reply with your numeric ID (e.g., `12345678`).
-
-### Single Owner Mode
-
-Only one user can use the bot:
-
-```json
-{
-  "owner_id": "12345678"
-}
-```
-
-### Allow List (Multiple Users)
-
-```json
-{
-  "allow_from": ["12345678", "87654321"]
-}
-```
-
-### Apply and Verify
-
-1. Edit config: `nano ~/.ironclaw/channels/telegram.capabilities.json`
-2. Add `owner_id` or `allow_from`
-3. Restart: `ironclaw run`
-4. Test from an unauthorized account — bot should not respond
-
-**Note**: Unauthorized users receive no error or pairing code. The bot simply doesn't respond.
-
-### Message Privacy
-
-<AccordionGroup>
-  <Accordion title="What the bot can see" icon="eye">
-    - All messages in groups where privacy mode is disabled
-    - Usernames and display names
-    - Message timestamps
-    - Reply chains (threading context)
-  </Accordion>
-
-  <Accordion title="What gets sent to the LLM" icon="message-square">
-    - The message text (with @mention stripped)
-    - Sender identifier (username or first name)
-    - Recent conversation history in that thread
-  </Accordion>
-
-  <Accordion title="What the bot remembers" icon="database">
-    - Conversation threads are stored in IronClaw's memory
-    - Can be searched via `memory_search`
-    - Persists across restarts
-  </Accordion>
-</AccordionGroup>
+To do this, set the `polling_enabled` option to `true` and configure the `poll_interval_ms` option
+with the desired polling interval in milliseconds (default is 30000ms, which is 30 seconds).
 
 ### Configuration Examples
 
@@ -299,113 +186,154 @@ Only one user can use the bot:
 }
 ```
 
+---
+
+## Group Chat Participation
+
+IronClaw can be configured to participate in Telegram group chats, by default the bot will only respond to commands (use `/help` to see the
+list of available commands). If you want the bot to respond to mentions or all messages in a group you need to configure it.
+
+### Adding the Bot to Groups
+
+1. **Enable group privacy** in @BotFather:
+   - Message [@BotFather](https://t.me/BotFather)
+   - Send `/mybots` → Select your bot
+   - Click "Bot Settings" → "Group Privacy"
+   - Turn OFF "Privacy mode" (allows bot to see all messages)
+
+2. **Add bot to a group**:
+   - Open the group in Telegram
+   - Add member → Search for your bot username
+   - Grant admin permissions (optional but recommended)
+
+3. **Configure `bot_username`** in IronClaw:
+   ```json
+   {
+     "bot_username": "MyIronClawBot"
+   }
+   ```
+
+### Group Trigger Modes
+
+#### Commands & Mentions
+
+The bot responds when a command is used, e.g. `/skills`, or when the bot is mentioned, e.g. `@MyIronClawBot what's the weather?`
+
+Configuration:
+
+- Set "Privacy mode" to `OFF` in @BotFather, or make the bot a group admin
+- Configure the `bot_username`:
+
+```json
+{
+  "bot_username": "MyIronClawBot",
+  "respond_to_all_group_messages": false
+}
+```
+
+Benefits:
+- Respects group conversation flow
+- No spam from unsolicited responses
+- Users explicitly choose to engage the agent
+
+#### Respond to All Messages
+
+The bot processes and responds to every message in the group.
+
+- Set "Privacy mode" to OFF in @BotFather, or make the bot a group admin
+- Configure both `bot_username` and `respond_to_all_group_messages`:
+
+Configuration:
+```json
+{
+  "bot_username": "MyIronClawBot",
+  "respond_to_all_group_messages": true
+}
+```
+
+Use cases:
+- Small team rooms where the agent is always helpful
+- Automated moderation or summarization
+- Specific-topic groups where the agent provides expertise
+
+---
+
+## Message Privacy
+
+<AccordionGroup>
+  <Accordion title="What the bot can see" icon="eye">
+    - All messages in groups where privacy mode is disabled
+    - Usernames and display names
+    - Message timestamps
+    - Reply chains (threading context)
+  </Accordion>
+
+  <Accordion title="What gets sent to the LLM" icon="message">
+    - The message text (with @mention stripped)
+    - Sender identifier (username or first name)
+    - Recent conversation history in that thread
+  </Accordion>
+
+</AccordionGroup>
+
+---
+
 ## Webhook Secret (Optional)
 
-For additional security:
+When IronClaw is running in webhook mode, Telegram delivers messages by sending HTTP requests to your public URL. Because that URL is reachable from the internet, any third party could send fake requests to it.
 
-1. Generate secret: `openssl rand -hex 16`
-2. Set `telegram_webhook_secret` in capabilities.json
-3. Telegram sends `X-Telegram-Bot-Api-Secret-Token` header
-4. IronClaw validates before processing
+A webhook secret is a shared token you configure in IronClaw. Telegram includes that token in every request it sends. IronClaw rejects any request that does not carry the correct token, so only genuine Telegram traffic reaches your agent.
+
+To enable it, add `telegram_webhook_secret` to your `.ironclaw/channels/telegram.capabilities.json`:
+
+```json
+{
+  "telegram_webhook_secret": "your-secret-here"
+}
+```
+
+Generate a suitable value with:
+
+```bash
+openssl rand -hex 16
+```
+
+<Note>
+The webhook secret is only relevant when `polling_enabled` is `false`. If you are using polling, this option has no effect.
+</Note>
+
+---
 
 ## Troubleshooting
 
 <AccordionGroup>
-  <Accordion title="Messages not delivered" icon="x-circle">
-    **Polling:** Check logs for `getUpdates` errors. Verify token is valid.
+  <Accordion title="Messages not delivered">
+    **Polling:** Check logs for `getUpdates` errors and verify the bot token is valid.
 
-    **Webhook:** Verify HTTPS URL is correct. Check tunnel is running.
+    **Webhook:** Verify the HTTPS URL is reachable and the tunnel is running.
   </Accordion>
 
-  <Accordion title="Pairing code not sent" icon="message-circle">
-    - Ensure `dm_policy` is `pairing` (not `allowlist`)
-    - Check bot can send messages
-    - Verify `api.telegram.org` is accessible
+  <Accordion title="Pairing code not sent">
+    - Ensure `dm_policy` is set to `pairing` and not `allowlist`
+    - Verify `api.telegram.org` is accessible from your instance
   </Accordion>
 
-  <Accordion title="Group mentions not working" icon="users">
-    - Set `bot_username` in config (must match bot username exactly, without @)
-    - Ensure bot has group message permissions (not blocked)
-    - Check that message contains `@YourBot` mention or starts with `/command`
-    - Verify `respond_to_all_group_messages` isn't needed (set to `true` to test)
+  <Accordion title="Group mentions not working">
+    - Confirm `bot_username` is set and matches the bot username exactly, without the `@`
+    - Verify the bot has permission to read group messages
   </Accordion>
 
-  <Accordion title="Bot not seeing group messages" icon="eye-off">
-    - **Disable Privacy Mode** in @BotFather (`/mybots` → Bot Settings → Group Privacy → Turn OFF)
-    - **Re-add the bot** to the group after disabling privacy mode
-    - **Check bot permissions**: Ensure it can read messages (not just send)
-    - Bot was added before disabling privacy: Remove and re-add to the group
+  <Accordion title="Bot not seeing group messages">
+    - Disable Privacy Mode in @BotFather: `/mybots` → Bot Settings → Group Privacy → turn OFF
+    - Remove and re-add the bot to the group after changing the privacy setting
   </Accordion>
 
-  <Accordion title="Bot responding to everything in groups" icon="message-circle">
-    - Set `respond_to_all_group_messages: false` (default behavior)
-    - Users must @mention the bot or use `/command` to trigger
-    - Check config is saved and IronClaw was restarted
-    - Verify config file path: `~/.ironclaw/channels/telegram.capabilities.json`
+  <Accordion title="Bot responding to all group messages unexpectedly">
+    - Set `respond_to_all_group_messages` to `false`
+    - Verify the config was saved and restart the agent
   </Accordion>
 
-  <Accordion title="Group messages causing rate limit errors" icon="zap">
-    - Large groups can hit the 100 msg/min limit
-    - Set `respond_to_all_group_messages: false` to reduce volume
-    - Consider moving high-traffic groups to webhook mode (polling has delays)
-  </Accordion>
-
-  <Accordion title="Bot ignores some users in groups" icon="user-x">
-    - Check `allow_from` list — user might not be included
-    - Verify `owner_id` isn't restricting access to someone else
-    - User may have privacy settings hiding their user ID
-    - Remove restrictive access controls: set `allow_from: ["*"]`
-  </Accordion>
-
-  <Accordion title="Owner binding timeout" icon="clock">
-    The wizard waits 120 seconds for the first message. If it times out:
-    - Send `/start` to your bot in Telegram
-    - Re-run `ironclaw onboard --channels-only`
-  </Accordion>
-
-  <Accordion title="Tunnel URL changed" icon="network">
-    ngrok free tier changes URLs on restart. Solutions:
-    - Upgrade to paid ngrok plan
-    - Use Cloudflare Tunnel (persistent URL)
-    - Use polling mode instead
+  <Accordion title="Owner binding timeout during setup">
+    The wizard waits 120 seconds for the first message. If it times out, send `/start` to your bot in Telegram and re-run `ironclaw onboard --channels-only`.
   </Accordion>
 </AccordionGroup>
-
-## Configuration File
-
-Edit `~/.ironclaw/channels/telegram.capabilities.json`:
-
-```json
-{
-  "dm_policy": "pairing",
-  "allow_from": [],
-  "owner_id": null,
-  "bot_username": "YourBotName",
-  "respond_to_all_group_messages": false,
-  "polling_enabled": true,
-  "poll_interval_ms": 30000
-}
-```
-
-### Configuration Reference
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `dm_policy` | string | `"pairing"` | DM access control: `"open"`, `"allowlist"`, or `"pairing"` |
-| `allow_from` | array | `[]` | Pre-approved user IDs/usernames. `["*"]` allows everyone |
-| `owner_id` | string | `null` | Restrict to single owner (overrides other policies) |
-| `bot_username` | string | `null` | Bot username (no @) for mention detection in groups |
-| `respond_to_all_group_messages` | boolean | `false` | If `true`, respond to every group message |
-| `polling_enabled` | boolean | `false` | Use polling instead of webhooks || `poll_interval_ms` | number | `30000` | Polling interval in milliseconds (min: 30000) |
-
-## Next Steps
-
-<CardGroup cols={2}>
-  <Card title="Web Gateway" icon="globe" href="/channels/web-gateway">
-    Browser-based chat interface
-  </Card>
-
-  <Card title="Webhook" icon="webhook" href="/channels/webhook">
-    HTTP API for integrations
-  </Card>
-</CardGroup>

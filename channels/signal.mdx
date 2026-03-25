@@ -1,50 +1,41 @@
 ---
-title: Signal Channel
-sidebarTitle: Signal
-description: Signal messenger integration for IronClaw
+title: "Signal"
+description: "Interact with your agent through Signal"
+icon: "message"
 ---
 
-<Info>
-Signal channel documentation is coming soon. The channel is fully implemented — documentation is being written.
+Connect IronClaw to Signal so you can talk to your agent in direct messages.
 
-See [Configuration Reference](/setup/configuration) for `SIGNAL_*` environment variables.
+<Note>
+If you haven't set up your agent yet, follow our [Quickstart guide](../quickstart)
+</Note>
+
+<Info>
+Signal channel documentation is coming soon. The channel is fully implemented — full setup steps and configuration details are being written.
+
+See [Configuration Reference](/setup/configuration) for all `SIGNAL_*` environment variables.
 </Info>
 
-## Overview
+---
 
-The Signal channel integrates IronClaw with Signal messenger via signal-cli.
+## Set up a Signal channel
 
-## Prerequisites
+The Signal channel connects IronClaw to a running [signal-cli](https://github.com/AsamK/signal-cli) HTTP daemon. Before configuring IronClaw, start signal-cli in daemon mode on your machine.
 
-- signal-cli daemon running
-- Signal account (phone number)
-- IronClaw configured with Signal credentials
+---
 
-## Configuration
+## Configuration Options
+
+Configure the Signal channel through environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `SIGNAL_HTTP_URL` | URL of the signal-cli HTTP daemon |
+| `SIGNAL_ACCOUNT` | Your Signal phone number (e.g. `+1234567890`) |
+| `SIGNAL_ALLOW_FROM` | Comma-separated list of phone numbers allowed to message the bot |
 
 ```bash
 export SIGNAL_HTTP_URL=http://127.0.0.1:8080
 export SIGNAL_ACCOUNT=+1234567890
 export SIGNAL_ALLOW_FROM=+0987654321,+11234567890
 ```
-
-## Coming Soon
-
-Full documentation covering:
-
-- signal-cli setup
-- Configuration options
-- DM and group policies
-- Troubleshooting
-
-## See Also
-
-<CardGroup cols={2}>
-  <Card title="Configuration" icon="settings" href="/setup/configuration">
-    Environment variable reference
-  </Card>
-
-  <Card title="Telegram" icon="message-circle" href="/channels/telegram">
-    Similar channel with full documentation
-  </Card>
-</CardGroup>

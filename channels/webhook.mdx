@@ -2,9 +2,16 @@
 title: HTTP Webhook
 sidebarTitle: Webhook
 description: REST API for external integrations
+icon: globe
 ---
 
 The HTTP Webhook channel provides a REST API for integrating external services with IronClaw.
+
+<Note>
+If you haven't set up your agent yet, follow our [Quickstart guide](../quickstart)
+</Note>
+
+---
 
 ## Enabling Webhooks
 
@@ -21,6 +28,8 @@ Step 6: Channel Configuration
 → Select "HTTP Webhook"
 → Port: 8080
 ```
+
+---
 
 ## Security
 
@@ -42,6 +51,8 @@ The secret is sent in the `X-Webhook-Secret` header.
 
 - **Body size**: 64 KB maximum
 - **Rate**: 60 requests per minute per IP
+
+---
 
 ## Sending Messages
 
@@ -66,6 +77,8 @@ curl -X POST http://localhost:8080/webhook \
 }
 ```
 
+---
+
 ## Payload Fields
 
 | Field | Type | Required | Description |
@@ -82,6 +95,8 @@ curl -X POST http://localhost:8080/webhook \
 | `job_id` | string | Job UUID for status checking |
 | `status` | string | `queued`, `running`, `completed` |
 | `response` | string | Agent response (when complete) |
+
+---
 
 ## Checking Status
 
@@ -100,6 +115,8 @@ Response:
 }
 ```
 
+---
+
 ## Error Responses
 
 | Status | Meaning |
@@ -108,6 +125,8 @@ Response:
 | `401` | Missing or invalid secret |
 | `429` | Rate limit exceeded |
 | `500` | Server error |
+
+---
 
 ## Example Integrations
 
@@ -140,6 +159,8 @@ response = requests.post(
 print(response.json()["job_id"])
 ```
 
+---
+
 ## Troubleshooting
 
 <AccordionGroup>
@@ -165,15 +186,3 @@ print(response.json()["job_id"])
     - Check `user_id` is valid
   </Accordion>
 </AccordionGroup>
-
-## Next Steps
-
-<CardGroup cols={2}>
-  <Card title="Telegram" icon="message-circle" href="/channels/telegram">
-    Set up Telegram bot integration
-  </Card>
-
-  <Card title="Web Gateway" icon="globe" href="/channels/web-gateway">
-    Browser-based chat interface
-  </Card>
-</CardGroup>
