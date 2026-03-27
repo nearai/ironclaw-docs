@@ -1,7 +1,6 @@
 ---
-title: "Building a tool"
-description: "Step-by-step tutorial: build a weather tool in Rust and run it inside IronClaw."
-icon: wrench
+title: Build a Tool from Scratch
+description: "Build a weather tool from scratch with Rust"
 ---
 
 In this tutorial you will build **weather-tool** from scratch — a WASM tool that fetches current conditions, a 5-day forecast, and air quality data using the free [Open-Meteo](https://open-meteo.com) API (no API key required).
@@ -125,15 +124,17 @@ export!(WeatherTool);
 The `wit/tool.wit` file ships with IronClaw. If you are building inside the IronClaw repo (e.g. under `tools-src/my-tool/`), the path `../../wit/tool.wit` is correct. If you are building in a standalone directory, copy `wit/tool.wit` from the repo root and adjust the path accordingly.
 </Note>
 
+<Note>
+If your tool uses private credentials (API keys, OAuth tokens), you still keep the same WIT interface. Secret handling is declared in `*.capabilities.json` and injected by the host at runtime. Your WASM tool should not ask the model for secrets in `params`.
+</Note>
+
 ---
 
-## 3. Define input and output types
+## 3. Define the Execute Logic
 
-The LLM sends JSON parameters. Use a tagged enum to dispatch the three actions:
+The tool will receive parameters provided by the LLM in JSON format, then execute the right logic based on those parameters and return a result also in JSON format.
 
 ```rust src/lib.rs
-// --- Input types ---
-
 #[derive(Debug, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 enum Action {
@@ -157,55 +158,6 @@ struct AirQualityParams {
     lon: f64,
 }
 
-// --- Output types ---
-
-#[derive(Debug, Serialize)]
-struct CurrentWeatherOutput {
-    city: String,
-    country: String,
-    temperature: f64,
-    feels_like: f64,
-    humidity: u32,
-    description: String,
-    wind_speed: f64,
-    units: String,
-}
-
-#[derive(Debug, Serialize)]
-struct ForecastOutput {
-    city: String,
-    country: String,
-    units: String,
-    entries: Vec<ForecastEntry>,
-}
-
-#[derive(Debug, Serialize)]
-struct ForecastEntry {
-    date: String,
-    temp_max: f64,
-    temp_min: f64,
-    description: String,
-    precipitation_probability_max: u32,
-}
-
-#[derive(Debug, Serialize)]
-struct AirQualityOutput {
-    lat: f64,
-    lon: f64,
-    european_aqi: u32,
-    aqi_label: String,
-    pm2_5: f64,
-    pm10: f64,
-}
-```
-
-`#[serde(tag = "action", rename_all = "snake_case")]` means the JSON field `"action": "get_current"` is enough to pick the right variant. No manual `match` on strings needed.
-
----
-
-## 4. Add the dispatch function
-
-```rust src/lib.rs
 fn execute_inner(params: &str) -> Result<String, String> {
     let action: Action =
         serde_json::from_str(params).map_err(|e| format!("Invalid parameters: {e}"))?;
@@ -218,9 +170,38 @@ fn execute_inner(params: &str) -> Result<String, String> {
 }
 ```
 
+<Note>
+
+Remember to match the action names and parameter structure in the JSON schema you will define later. The LLM relies on that schema to know what JSON to send, so if your Rust code expects `country_code` but the schema calls it `country`, the LLM won't know to include it and you'll get errors at runtime.
+
+</Note>
+
 ---
 
-## 5. Implement geocoding
+## 4. Implement the Actions
+
+We will now implement the three actions: `get_current`, `get_forecast`, and `get_air_quality`. Each action will call the appropriate Open-Meteo API endpoint, parse the response, and return a JSON string with the relevant information.
+
+<Accordion title="Handling authenticated APIs" icon="key">
+
+If your API needs a secret (for example a bearer token), you do not inject it in these Rust functions manually. 
+
+Instead you will declare them in the [capabilities file](#9-add-secrets-and-auth-for-tools-that-need-credentials) and let the host inject them at runtime.
+
+Your Rust code just calls `api_get(...)` with the right URL and headers, and the host adds credentials automatically for allowlisted hosts.
+
+You can still check for the presence of secrets if you want to return a custom error message when credentials are missing:
+
+```rust
+if !near::agent::host::secret_exists("example_api_token") {
+        return Err("Missing secret: example_api_token. Run: ironclaw tool auth <tool-name>".into());
+}
+```
+
+</Accordion>
+
+
+### Geocoding helper
 
 Open-Meteo needs coordinates, not city names. Add a helper that calls the free geocoding API:
 
@@ -273,139 +254,7 @@ fn geocode(city: &str, country_code: Option<&str>) -> Result<GeoResult, String> 
 
 `near::agent::host::log` emits a structured log line visible in `ironclaw` output. The host collects all log entries and flushes them after the call completes.
 
----
-
-## 6. Implement the three actions
-
-### `get_current`
-
-```rust src/lib.rs
-fn get_current(params: WeatherParams) -> Result<String, String> {
-    if params.city.is_empty() {
-        return Err("'city' must not be empty".into());
-    }
-
-    let geo = geocode(&params.city, params.country_code.as_deref())?;
-    let units     = params.units.as_deref().unwrap_or("metric");
-    let temp_unit = if units == "imperial" { "fahrenheit" } else { "celsius" };
-    let wind_unit = if units == "imperial" { "mph" } else { "ms" };
-
-    let url = format!(
-        "https://api.open-meteo.com/v1/forecast\
-         ?latitude={}&longitude={}\
-         &current=temperature_2m,apparent_temperature,relative_humidity_2m,\
-         weather_code,wind_speed_10m\
-         &temperature_unit={}&wind_speed_unit={}",
-        geo.latitude, geo.longitude, temp_unit, wind_unit
-    );
-
-    let resp = api_get(&url)?;
-    let data: serde_json::Value =
-        serde_json::from_str(&resp).map_err(|e| format!("Failed to parse response: {e}"))?;
-
-    let current = &data["current"];
-    let output = CurrentWeatherOutput {
-        city:        geo.name,
-        country:     geo.country,
-        temperature: current["temperature_2m"].as_f64().unwrap_or(0.0),
-        feels_like:  current["apparent_temperature"].as_f64().unwrap_or(0.0),
-        humidity:    current["relative_humidity_2m"].as_u64().unwrap_or(0) as u32,
-        description: wmo_description(current["weather_code"].as_u64().unwrap_or(0) as u32),
-        wind_speed:  current["wind_speed_10m"].as_f64().unwrap_or(0.0),
-        units:       units.to_string(),
-    };
-
-    serde_json::to_string(&output).map_err(|e| format!("Serialization error: {e}"))
-}
-```
-
-### `get_forecast`
-
-```rust src/lib.rs
-fn get_forecast(params: WeatherParams) -> Result<String, String> {
-    if params.city.is_empty() {
-        return Err("'city' must not be empty".into());
-    }
-
-    let geo       = geocode(&params.city, params.country_code.as_deref())?;
-    let units     = params.units.as_deref().unwrap_or("metric");
-    let temp_unit = if units == "imperial" { "fahrenheit" } else { "celsius" };
-    let wind_unit = if units == "imperial" { "mph" } else { "ms" };
-
-    let url = format!(
-        "https://api.open-meteo.com/v1/forecast\
-         ?latitude={}&longitude={}\
-         &daily=temperature_2m_max,temperature_2m_min,weather_code,\
-         precipitation_probability_max\
-         &temperature_unit={}&wind_speed_unit={}&forecast_days=5",
-        geo.latitude, geo.longitude, temp_unit, wind_unit
-    );
-
-    let resp  = api_get(&url)?;
-    let data: serde_json::Value =
-        serde_json::from_str(&resp).map_err(|e| format!("Failed to parse response: {e}"))?;
-
-    let daily    = &data["daily"];
-    let times    = daily["time"].as_array().cloned().unwrap_or_default();
-    let temp_max = daily["temperature_2m_max"].as_array().cloned().unwrap_or_default();
-    let temp_min = daily["temperature_2m_min"].as_array().cloned().unwrap_or_default();
-    let codes    = daily["weather_code"].as_array().cloned().unwrap_or_default();
-    let precip   = daily["precipitation_probability_max"].as_array().cloned().unwrap_or_default();
-
-    let entries = times.iter().enumerate().map(|(i, t)| ForecastEntry {
-        date:        t.as_str().unwrap_or("").to_string(),
-        temp_max:    temp_max.get(i).and_then(|v| v.as_f64()).unwrap_or(0.0),
-        temp_min:    temp_min.get(i).and_then(|v| v.as_f64()).unwrap_or(0.0),
-        description: wmo_description(codes.get(i).and_then(|v| v.as_u64()).unwrap_or(0) as u32),
-        precipitation_probability_max: precip.get(i).and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-    }).collect();
-
-    let output = ForecastOutput { city: geo.name, country: geo.country, units: units.to_string(), entries };
-    serde_json::to_string(&output).map_err(|e| format!("Serialization error: {e}"))
-}
-```
-
-### `get_air_quality`
-
-```rust src/lib.rs
-fn get_air_quality(params: AirQualityParams) -> Result<String, String> {
-    if params.lat < -90.0 || params.lat > 90.0 {
-        return Err(format!("'lat' must be -90..90, got {}", params.lat));
-    }
-    if params.lon < -180.0 || params.lon > 180.0 {
-        return Err(format!("'lon' must be -180..180, got {}", params.lon));
-    }
-
-    let url = format!(
-        "https://air-quality-api.open-meteo.com/v1/air-quality\
-         ?latitude={}&longitude={}\
-         &current=pm10,pm2_5,european_aqi",
-        params.lat, params.lon
-    );
-
-    let resp = api_get(&url)?;
-    let data: serde_json::Value =
-        serde_json::from_str(&resp).map_err(|e| format!("Failed to parse response: {e}"))?;
-
-    let current = &data["current"];
-    let aqi     = current["european_aqi"].as_u64().unwrap_or(0) as u32;
-
-    let output = AirQualityOutput {
-        lat:           params.lat,
-        lon:           params.lon,
-        european_aqi:  aqi,
-        aqi_label:     european_aqi_label(aqi),
-        pm2_5:         current["pm2_5"].as_f64().unwrap_or(0.0),
-        pm10:          current["pm10"].as_f64().unwrap_or(0.0),
-    };
-
-    serde_json::to_string(&output).map_err(|e| format!("Serialization error: {e}"))
-}
-```
-
----
-
-## 7. Add utility functions
+### API helper
 
 ```rust src/lib.rs
 fn api_get(url: &str) -> Result<String, String> {
@@ -475,9 +324,135 @@ fn european_aqi_label(aqi: u32) -> String {
 }
 ```
 
+### Get current weather
+
+```rust 
+fn get_current(params: WeatherParams) -> Result<String, String> {
+    if params.city.is_empty() {
+        return Err("'city' must not be empty".into());
+    }
+
+    let geo = geocode(&params.city, params.country_code.as_deref())?;
+    let units     = params.units.as_deref().unwrap_or("metric");
+    let temp_unit = if units == "imperial" { "fahrenheit" } else { "celsius" };
+    let wind_unit = if units == "imperial" { "mph" } else { "ms" };
+
+    let url = format!(
+        "https://api.open-meteo.com/v1/forecast\
+         ?latitude={}&longitude={}\
+         &current=temperature_2m,apparent_temperature,relative_humidity_2m,\
+         weather_code,wind_speed_10m\
+         &temperature_unit={}&wind_speed_unit={}",
+        geo.latitude, geo.longitude, temp_unit, wind_unit
+    );
+
+    let resp = api_get(&url)?;
+    let data: serde_json::Value =
+        serde_json::from_str(&resp).map_err(|e| format!("Failed to parse response: {e}"))?;
+
+    let current = &data["current"];
+    let output = CurrentWeatherOutput {
+        city:        geo.name,
+        country:     geo.country,
+        temperature: current["temperature_2m"].as_f64().unwrap_or(0.0),
+        feels_like:  current["apparent_temperature"].as_f64().unwrap_or(0.0),
+        humidity:    current["relative_humidity_2m"].as_u64().unwrap_or(0) as u32,
+        description: wmo_description(current["weather_code"].as_u64().unwrap_or(0) as u32),
+        wind_speed:  current["wind_speed_10m"].as_f64().unwrap_or(0.0),
+        units:       units.to_string(),
+    };
+
+    serde_json::to_string(&output).map_err(|e| format!("Serialization error: {e}"))
+}
+```
+
+### Get forecast
+
+```rust src/lib.rs
+fn get_forecast(params: WeatherParams) -> Result<String, String> {
+    if params.city.is_empty() {
+        return Err("'city' must not be empty".into());
+    }
+
+    let geo       = geocode(&params.city, params.country_code.as_deref())?;
+    let units     = params.units.as_deref().unwrap_or("metric");
+    let temp_unit = if units == "imperial" { "fahrenheit" } else { "celsius" };
+    let wind_unit = if units == "imperial" { "mph" } else { "ms" };
+
+    let url = format!(
+        "https://api.open-meteo.com/v1/forecast\
+         ?latitude={}&longitude={}\
+         &daily=temperature_2m_max,temperature_2m_min,weather_code,\
+         precipitation_probability_max\
+         &temperature_unit={}&wind_speed_unit={}&forecast_days=5",
+        geo.latitude, geo.longitude, temp_unit, wind_unit
+    );
+
+    let resp  = api_get(&url)?;
+    let data: serde_json::Value =
+        serde_json::from_str(&resp).map_err(|e| format!("Failed to parse response: {e}"))?;
+
+    let daily    = &data["daily"];
+    let times    = daily["time"].as_array().cloned().unwrap_or_default();
+    let temp_max = daily["temperature_2m_max"].as_array().cloned().unwrap_or_default();
+    let temp_min = daily["temperature_2m_min"].as_array().cloned().unwrap_or_default();
+    let codes    = daily["weather_code"].as_array().cloned().unwrap_or_default();
+    let precip   = daily["precipitation_probability_max"].as_array().cloned().unwrap_or_default();
+
+    let entries = times.iter().enumerate().map(|(i, t)| ForecastEntry {
+        date:        t.as_str().unwrap_or("").to_string(),
+        temp_max:    temp_max.get(i).and_then(|v| v.as_f64()).unwrap_or(0.0),
+        temp_min:    temp_min.get(i).and_then(|v| v.as_f64()).unwrap_or(0.0),
+        description: wmo_description(codes.get(i).and_then(|v| v.as_u64()).unwrap_or(0) as u32),
+        precipitation_probability_max: precip.get(i).and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+    }).collect();
+
+    let output = ForecastOutput { city: geo.name, country: geo.country, units: units.to_string(), entries };
+    serde_json::to_string(&output).map_err(|e| format!("Serialization error: {e}"))
+}
+```
+
+### Get air quality
+
+```rust src/lib.rs
+fn get_air_quality(params: AirQualityParams) -> Result<String, String> {
+    if params.lat < -90.0 || params.lat > 90.0 {
+        return Err(format!("'lat' must be -90..90, got {}", params.lat));
+    }
+    if params.lon < -180.0 || params.lon > 180.0 {
+        return Err(format!("'lon' must be -180..180, got {}", params.lon));
+    }
+
+    let url = format!(
+        "https://air-quality-api.open-meteo.com/v1/air-quality\
+         ?latitude={}&longitude={}\
+         &current=pm10,pm2_5,european_aqi",
+        params.lat, params.lon
+    );
+
+    let resp = api_get(&url)?;
+    let data: serde_json::Value =
+        serde_json::from_str(&resp).map_err(|e| format!("Failed to parse response: {e}"))?;
+
+    let current = &data["current"];
+    let aqi     = current["european_aqi"].as_u64().unwrap_or(0) as u32;
+
+    let output = AirQualityOutput {
+        lat:           params.lat,
+        lon:           params.lon,
+        european_aqi:  aqi,
+        aqi_label:     european_aqi_label(aqi),
+        pm2_5:         current["pm2_5"].as_f64().unwrap_or(0.0),
+        pm10:          current["pm10"].as_f64().unwrap_or(0.0),
+    };
+
+    serde_json::to_string(&output).map_err(|e| format!("Serialization error: {e}"))
+}
+```
+
 ---
 
-## 8. Define the JSON schema
+## 5. Define the JSON schema
 
 The `SCHEMA` constant tells the LLM exactly what JSON to send. Use `oneOf` because the three actions have different required fields:
 
@@ -525,7 +500,7 @@ const SCHEMA: &str = r#"{
 
 ---
 
-## 9. Declare capabilities
+## 6. Declare capabilities
 
 Create `weather-tool.capabilities.json` next to `Cargo.toml`. This file is the sandbox allowlist — any host not listed here is blocked at runtime:
 
@@ -564,7 +539,73 @@ The weather tool needs three hosts because `get_current` and `get_forecast` make
 
 ---
 
-## 10. Build and install
+## 7. Add secrets and auth (for tools that need credentials)
+
+This weather tool uses Open-Meteo, so it does not need a secret. If your tool calls an API that needs a token, declare that in the capabilities file so IronClaw can inject it at request time.
+
+Example capability sections (pattern used in `tools-src/*` on the IronClaw repo):
+
+```json weather-tool.capabilities.json
+{
+    "http": {
+        "allowlist": [
+            {
+                "host": "api.example.com",
+                "path_prefix": "/v1/",
+                "methods": ["GET", "POST"]
+            }
+        ],
+        "credentials": {
+            "example_api_token": {
+                "secret_name": "example_api_token",
+                "location": { "type": "bearer" },
+                "host_patterns": ["api.example.com"]
+            }
+        }
+    },
+    "secrets": {
+        "allowed_names": ["example_api_token"]
+    },
+    "auth": {
+        "secret_name": "example_api_token",
+        "display_name": "Example API",
+        "instructions": "Create an API token in your provider dashboard",
+        "setup_url": "https://example.com/settings/api",
+        "token_hint": "Starts with 'ex_'",
+        "env_var": "EXAMPLE_API_TOKEN"
+    }
+}
+```
+
+How this works:
+
+- `http.credentials` maps a stored secret to where it should be injected (`bearer`, custom header, query param, or URL placeholder).
+- `secrets.allowed_names` lets the tool check secret presence with `near::agent::host::secret_exists(...)`.
+- `auth` tells IronClaw how to collect credentials.
+
+After installing the tool, run auth once:
+
+```bash
+ironclaw tool auth <tool-name>
+```
+
+Auth flow priority is:
+
+1. Use `auth.env_var` if it is set in your environment.
+2. Use OAuth if `auth.oauth` is configured.
+3. Fall back to manual token entry using `instructions` and `setup_url`.
+
+If your capabilities include `setup.required_secrets` (for example OAuth client id/client secret fields), run setup as well:
+
+```bash
+ironclaw tool setup <tool-name>
+```
+
+This keeps credentials outside agent-visible prompts and lets the host inject them only where allowlisted.
+
+---
+
+## 8. Build and install
 
 ```bash
 cargo build --target wasm32-wasip2 --release
@@ -582,6 +623,18 @@ Verify it loaded:
 ironclaw tool list
 ```
 
+If your tool defines secret variables, authenticate now:
+
+```bash
+ironclaw tool auth <tool-name>
+```
+
+If your tool defines `setup.required_secrets`, run:
+
+```bash
+ironclaw tool setup <tool-name>
+```
+
 ---
 
 ## Try it out
@@ -593,34 +646,3 @@ Start IronClaw and ask your agent:
 - "What's the air quality at coordinates 35.6762, 139.6503?"
 
 The agent resolves the right action from the schema and calls the tool automatically.
-
-### Example output
-
-A `get_current` call for Tokyo returns:
-
-```json
-{
-  "city": "Tokyo",
-  "country": "Japan",
-  "temperature": 18.2,
-  "feels_like": 16.8,
-  "humidity": 62,
-  "description": "Partly cloudy",
-  "wind_speed": 4.1,
-  "units": "metric"
-}
-```
-
-A `get_forecast` call returns an array of daily entries:
-
-```json
-{
-  "city": "London",
-  "country": "United Kingdom",
-  "units": "imperial",
-  "entries": [
-    { "date": "2026-03-24", "temp_max": 57.1, "temp_min": 46.3, "description": "Moderate rain", "precipitation_probability_max": 80 },
-    { "date": "2026-03-25", "temp_max": 54.0, "temp_min": 44.9, "description": "Overcast",      "precipitation_probability_max": 40 }
-  ]
-}
-```
