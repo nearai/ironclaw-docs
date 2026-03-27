@@ -1,12 +1,14 @@
 ---
 title: WASM Tools
-sidebarTitle: WASM Tools
+sidebarTitle: Sandboxed Tools
 description: Sandboxed tool execution via WebAssembly (wasmtime)
 ---
 
 WASM tools run inside a WebAssembly sandbox powered by [wasmtime](https://wasmtime.dev/). They have access to IronClaw's host functions (logging, time, workspace), but all other capabilities — network, filesystem, credentials — must be explicitly declared in a `capabilities.json` file.
 
 This is IronClaw's recommended approach for custom integrations that need stronger isolation than a built-in Rust tool provides.
+
+---
 
 ## How It Works
 
@@ -29,6 +31,8 @@ Tool output passes through Safety Layer
     ↓
 LLM receives sanitized result
 ```
+
+---
 
 ## Sandbox Architecture
 
@@ -64,6 +68,8 @@ Rate limits are declared in `capabilities.json`:
   }
 }
 ```
+
+---
 
 ## capabilities.json
 
@@ -118,6 +124,8 @@ Credentials listed in `capabilities.json` are never passed into the WASM module'
 
 The WASM module never sees the raw credential value — it only makes an unauthenticated HTTP request, and the proxy adds the auth header transparently.
 
+---
+
 ## Host Functions
 
 WASM modules can call the following host functions provided by IronClaw:
@@ -131,6 +139,8 @@ WASM modules can call the following host functions provided by IronClaw:
 
 These are the only host capabilities available. A WASM tool cannot call arbitrary OS functions, fork processes, or access the network directly — all network access goes through the proxy.
 
+---
+
 ## Tool Discovery
 
 WASM tools are discovered at startup from two locations:
@@ -141,6 +151,8 @@ WASM tools are discovered at startup from two locations:
 Each tool directory must contain:
 - `<toolname>.wasm` — The compiled WebAssembly module
 - `capabilities.json` — The capability declaration
+
+---
 
 ## Installing WASM Tools
 
@@ -158,11 +170,15 @@ ironclaw tool list
 Or via the `extension_install` tool in chat:
 > "Install the tool from https://example.com/tools/my-tool.wasm"
 
+---
+
 ## Module Compilation and Caching
 
 WASM modules are compiled by wasmtime on first load and cached. Subsequent loads use the compiled artifact, so only the first invocation of a new tool incurs compilation overhead.
 
 The cache is stored at `~/.ironclaw/wasm-cache/`.
+
+---
 
 ## Security Notes
 
@@ -183,19 +199,3 @@ Review `capabilities.json` before installing any WASM tool from an untrusted sou
     A buggy or malicious WASM tool that enters an infinite loop will be terminated when it exhausts its fuel allocation. This prevents a single tool from blocking the agent indefinitely.
   </Accordion>
 </AccordionGroup>
-
-## Next Steps
-
-<CardGroup cols={3}>
-  <Card title="Building Custom Tools" icon="hammer" href="/tools/building">
-    Scaffold a WASM tool from scratch
-  </Card>
-
-  <Card title="MCP Servers" icon="server" href="/tools/mcp">
-    Alternative: ecosystem MCP servers
-  </Card>
-
-  <Card title="Sandbox" icon="container" href="/security/sandbox">
-    Docker sandbox for job-level isolation
-  </Card>
-</CardGroup>

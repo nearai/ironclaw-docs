@@ -58,7 +58,8 @@
                 ]
               },
               "capabilities/jobs",
-              "capabilities/skills"
+              "capabilities/skills",
+              "capabilities/sandboxed-tools"
             ]
           },
           {
@@ -79,7 +80,8 @@
               "extensions/file-tools",
               "extensions/github",
               "extensions/mcp",
-              "extensions/web-search"
+              "extensions/web-search",
+              "extensions/shell"
             ]
           },
           {

