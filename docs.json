@@ -15,7 +15,7 @@
   "navbar": {
     "links": [
       {
-        "label": "Support",
+        "label": "Get Support",
         "href": "https://t.me/ironclawAI"
       }
     ],
@@ -31,7 +31,7 @@
         "tab": " ",
         "groups": [
           {
-            "group": "Getting started",
+            "group": " ",
             "pages": [
               "index",
               "quickstart",
@@ -39,27 +39,54 @@
             ]
           },
           {
+            "group": "Core Capabilities",
+            "icon": "cubes",
+            "pages": [
+              {
+                "group": "Memory",
+                "pages": [
+                  "capabilities/memory/memory",
+                  "capabilities/memory/identity"
+                ]
+              },
+              {
+                "group": "Routines",
+                "pages": [
+                  "capabilities/routines/cron",
+                  "capabilities/routines/heartbeat",
+                  "capabilities/routines/reactive"
+                ]
+              },
+              "capabilities/jobs",
+              "capabilities/skills"
+            ]
+          },
+          {
             "group": "Channels",
+            "icon": "message",
             "pages": [
               "tunnel",
-              {
-                "group": "Available Channels",
-                "icon": "message",
-                "pages": [
-                  "channels/local",
-                  "channels/signal",
-                  "channels/telegram",
-                  "channels/webhook"
-                ]
-              }
+              "channels/local",
+              "channels/signal",
+              "channels/telegram",
+              "channels/webhook"
             ]
           },
           {
             "group": "Extensions (Tools)",
+            "icon": "hammer",
             "pages": [
-              "extensions/building-a-tool",
-              "extensions/web-search",
-              "extensions/github"
+              "extensions/file-tools",
+              "extensions/github",
+              "extensions/mcp",
+              "extensions/web-search"
+            ]
+          },
+          {
+            "group": "Tutorials",
+            "icon": "graduation-cap",
+            "pages": [
+              "extensions/building-a-tool"
             ]
           }
         ]
