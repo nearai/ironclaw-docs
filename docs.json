@@ -92,6 +92,7 @@
                     "group": "Google",
                     "pages": [
                       "extensions/google-oauth-setup",
+                      "extensions/gmail",
                       "extensions/google-calendar",
                       "extensions/google-docs",
                       "extensions/google-drive",
@@ -108,8 +109,7 @@
                 "group": "Tutorials",
                 "icon": "graduation-cap",
                 "pages": [
-                  "extensions/building-a-tool",
-                  "extensions/building-a-google-tool"
+                  "extensions/building-a-tool"
                 ]
               }
             ]

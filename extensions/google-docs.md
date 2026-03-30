@@ -30,7 +30,6 @@ ironclaw registry install google-docs
 <Step title="Authorize Access">
 
 ```bash
-ironclaw tool setup google-docs
 ironclaw tool auth google-docs
 ```
 

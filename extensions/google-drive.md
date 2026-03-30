@@ -30,7 +30,6 @@ ironclaw registry install google-drive
 <Step title="Authorize Access">
 
 ```bash
-ironclaw tool setup google-drive
 ironclaw tool auth google-drive
 ```
 

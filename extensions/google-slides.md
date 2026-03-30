@@ -30,7 +30,6 @@ ironclaw registry install google-slides
 <Step title="Authorize Access">
 
 ```bash
-ironclaw tool setup google-slides
 ironclaw tool auth google-slides
 ```
 
