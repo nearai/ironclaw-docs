@@ -30,7 +30,6 @@ ironclaw registry install google-sheets
 <Step title="Authorize Access">
 
 ```bash
-ironclaw tool setup google-sheets
 ironclaw tool auth google-sheets
 ```
 
