@@ -88,7 +88,17 @@
                 "pages": [
                   "extensions/file-tools",
                   "extensions/github",
-                  "extensions/google-calendar",
+                  {
+                    "group": "Google",
+                    "pages": [
+                      "extensions/google-oauth-setup",
+                      "extensions/google-calendar",
+                      "extensions/google-docs",
+                      "extensions/google-drive",
+                      "extensions/google-sheets",
+                      "extensions/google-slides"
+                    ]
+                  },
                   "extensions/mcp",
                   "extensions/web-search",
                   "extensions/shell"
@@ -98,7 +108,8 @@
                 "group": "Tutorials",
                 "icon": "graduation-cap",
                 "pages": [
-                  "extensions/building-a-tool"
+                  "extensions/building-a-tool",
+                  "extensions/building-a-google-tool"
                 ]
               }
             ]

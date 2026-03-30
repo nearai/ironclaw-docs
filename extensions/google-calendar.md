@@ -9,85 +9,17 @@ The Google Calendar extension allows your agent to interact with your Google Cal
 
 ## Setup
 
+If you haven't set up Google OAuth yet, complete the [Google OAuth Setup](/extensions/google-oauth-setup) first.
+
 <Steps>
-
-<Step title="Create a Google Cloud Project">
-
-Go to [Google Cloud Console](https://console.cloud.google.com) and create a new project (or select an existing one).
-
-1. Click **Select a project** → **New Project**
-2. Give it a name (e.g. `ironclaw-calendar`) and click **Create**
-
-</Step>
 
 <Step title="Enable the Google Calendar API">
 
-With your project selected, navigate to **APIs & Services → Library**, search for **Google Calendar API**, and click **Enable**.
+In your Google Cloud project, navigate to **APIs & Services → Library**, search for **Google Calendar API**, and click **Enable**.
 
 </Step>
 
-<Step title="Create OAuth 2.0 Credentials">
-
-Go to **Google Auth Platform → Clients** and create a new client:
-
-1. Click **Create client**
-2. Set **Application type** to **Web application**
-3. Give it a name (e.g. `ironclaw-calendar`)
-4. Under **Authorized redirect URIs**, click **+ Add URI** and enter:
-
-   ```
-   http://127.0.0.1:9876/callback
-   ```
-
-5. Click **Create** and copy the **Client ID** and **Client Secret** shown
-
-
-</Step>
-
-<Step title="Add Test Users">
-
-Since the app is in **Testing** mode, only explicitly added users can authorize it. Go to **APIs & Services → OAuth consent screen**, scroll down to **Test users**, and click **+ Add users**.
-
-Add the Google account(s) that will use the extension (e.g. `yourname@gmail.com`). The app supports up to 100 test users before requiring verification.
-
-<Info>
-Only test users can complete the OAuth flow while the app is in Testing mode. If you get an "access blocked" error, make sure your account is listed here.
-</Info>
-
-</Step>
-
-<Step title="Connect to the Development Server">
-
-The Google OAuth callback runs on the remote server at port `9876`. Since that port is not exposed publicly, you need to create an **SSH tunnel** that forwards `localhost:9876` on your machine to `127.0.0.1:9876` on the server. This way, when Google redirects to `http://127.0.0.1:9876/callback` after authorization, the request reaches the server correctly.
-
-Open the tunnel by running:
-
-```bash
-ssh -p 15222 -L 9876:127.0.0.1:9876 solid-wolf@agent4.near.ai
-```
-
-Keep this terminal session open while using the extension.
-
-<Info>
-The `-L 9876:127.0.0.1:9876` flag is what creates the tunnel. Without it, the OAuth callback will fail because port 9876 is only accessible from within the server.
-</Info>
-
-</Step>
-
-<Step title="Set Environment Variables">
-
-Using the **Client ID** and **Client Secret** obtained in the previous step, export them as environment variables on the server:
-
-```bash
-export GOOGLE_OAUTH_CLIENT_ID=<your-client-id>
-export GOOGLE_OAUTH_CLIENT_SECRET=<your-client-secret>
-```
-
-</Step>
-
-<Step title="Install the Google Calendar Extension">
-
-Install the extension by running:
+<Step title="Install the Extension">
 
 ```bash
 ironclaw registry install google-calendar
@@ -95,19 +27,13 @@ ironclaw registry install google-calendar
 
 </Step>
 
-<Step title="Configure Your Credentials">
-
-Provide IronClaw with your OAuth credentials:
+<Step title="Authorize Access">
 
 ```bash
 ironclaw tool auth google-calendar
 ```
 
-Follow the prompts to paste the contents of your `credentials.json` file or provide the path to it. IronClaw will open a browser window for you to authorize access to your calendar — once approved, the token is stored securely.
-
-<Info>
-The authorization flow only runs once. After that, IronClaw will automatically refresh the access token as needed.
-</Info>
+IronClaw will open a browser window — once approved, the token is stored securely and refreshed automatically.
 
 </Step>
 
@@ -116,8 +42,6 @@ The authorization flow only runs once. After that, IronClaw will automatically r
 ---
 
 ## Available Actions
-
-Here are some of the actions your agent can perform with the Google Calendar extension:
 
 - `list_calendars`: List all calendars in your Google account
 - `list_events`: List upcoming events in a calendar
